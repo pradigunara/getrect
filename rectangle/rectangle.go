@@ -1,27 +1,10 @@
 package rectangle
 
-import (
-	"fmt"
-)
-
 type Rectangle struct {
 	X      int `json:"x"`
 	Y      int `json:"y"`
-	Width  int `json:"w"`
-	Height int `json:"h"`
-}
-
-func NewRectangle(x, y, w, h int) (Rectangle, error) {
-	if w < 0 || h < 0 {
-		return Rectangle{}, fmt.Errorf("rectangle width & height cannot be negative: w %d h %d", w, h)
-	}
-
-	return Rectangle{
-		X:      x,
-		Y:      y,
-		Width:  w,
-		Height: h,
-	}, nil
+	Width  int `json:"w" validate:"gt=0"`
+	Height int `json:"h" validate:"gt=0"`
 }
 
 func (r *Rectangle) IsColliding(otherRect Rectangle) bool {

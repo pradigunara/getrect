@@ -3,19 +3,23 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-playground/validator/v10"
 	"github.com/pradigunara/getrect/rectangle"
 	"io/ioutil"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 )
 
+var validate *validator.Validate
+
 func main() {
-	//if len(os.Args) < 2 {
-	//	log.Fatal("please specify input filename!")
-	//}
-	//
-	//inputFilename := os.Args[1]
-	inputFilename := "rectinput.json"
+	if len(os.Args) < 2 {
+		log.Fatal("please specify input filename!")
+	}
+
+	inputFilename := os.Args[1]
 
 	inputRectangles, err := LoadInput(inputFilename)
 	if err != nil {
@@ -42,23 +46,62 @@ func FindIntersections(inputRectangles []rectangle.Rectangle) rectangle.Intersec
 
 			if inputRectangle.IsColliding(otherRectangle) {
 				intersectionMap.AddSortedKey(
-					fmt.Sprintf("%d%d", i+1, j+1),
+					fmt.Sprintf("%d%d", i, j),
 					inputRectangle.GetIntersection(otherRectangle),
 				)
 			}
 		}
 	}
 
+	deepIntersectionMap := FindIntersectionMultiple(inputRectangles, intersectionMap)
+	intersectionMap.Merge(deepIntersectionMap)
+
 	return intersectionMap
+}
+
+func FindIntersectionMultiple(
+	inputRectangles []rectangle.Rectangle,
+	previousMapper rectangle.IntersectionMapper,
+) rectangle.IntersectionMapper {
+	currentMapper := rectangle.NewIntersectionMap()
+
+	for i, inputRectangle := range inputRectangles {
+		for j, intersectionRectangle := range previousMapper.GetContainer() {
+			if strings.Contains(j, strconv.Itoa(i)) {
+				continue
+			}
+
+			if intersectionRectangle.IsColliding(inputRectangle) {
+				currentMapper.AddSortedKey(
+					fmt.Sprintf("%d%s", i, j),
+					intersectionRectangle.GetIntersection(inputRectangle),
+				)
+			}
+		}
+	}
+
+	if currentMapper.Size() > 0 {
+		 nextMapper := FindIntersectionMultiple(inputRectangles, currentMapper)
+		 currentMapper.Merge(nextMapper)
+	}
+
+	return currentMapper
 }
 
 func PrintResult(inputRectangles []rectangle.Rectangle, intersections rectangle.IntersectionMapper) {
 	formatRectangleNumbers := func(input string) string {
 		numbers := strings.Split(input, "")
-		last := numbers[len(numbers)-1]
-		body := numbers[:len(numbers)-1]
+		lastNumberString := numbers[len(numbers)-1]
+		bodyNumberString := numbers[:len(numbers)-1]
 
-		return fmt.Sprintf("%s and %s", strings.Join(body, ", "), last)
+		lastNumber, _ := strconv.Atoi(lastNumberString)
+		offsetBodyNumber := []string{}
+		for _, b := range bodyNumberString {
+			num, _ := strconv.Atoi(b)
+			offsetBodyNumber = append(offsetBodyNumber, strconv.Itoa(num + 1))
+		}
+
+		return fmt.Sprintf("%s and %d", strings.Join(offsetBodyNumber, ", "), lastNumber + 1)
 	}
 
 	fmt.Println("Input:")
@@ -71,7 +114,7 @@ func PrintResult(inputRectangles []rectangle.Rectangle, intersections rectangle.
 	for idx, is := range intersections.GetSorted() {
 		fmt.Printf(
 			"\t%d: Between rectangle %s at (%d,%d), w=%d, h=%d.\n",
-			idx + 1, formatRectangleNumbers(is.Key), is.Value.X, is.Value.Y, is.Value.Width, is.Value.Height,
+			idx+1, formatRectangleNumbers(is.Key), is.Value.X, is.Value.Y, is.Value.Width, is.Value.Height,
 		)
 	}
 }
@@ -82,10 +125,16 @@ func LoadInput(inputFilename string) (rects []rectangle.Rectangle, err error) {
 		return rects, fmt.Errorf("error reading file: %w", err)
 	}
 
-	parseResult := struct{ Rects []rectangle.Rectangle }{}
+	parseResult := struct{ Rects []rectangle.Rectangle `validate:"required,dive"` }{}
 
 	if err = json.Unmarshal(fileContent, &parseResult); err != nil {
 		return rects, fmt.Errorf("error parsing json: %w", err)
+	}
+
+	validate = validator.New()
+	err = validate.Struct(parseResult)
+	if err != nil {
+		return rects, fmt.Errorf("error validating input: %w", err)
 	}
 
 	// limit input to 10 rectangles

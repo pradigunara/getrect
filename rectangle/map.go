@@ -13,6 +13,8 @@ type IntersectionMapper interface {
 	Remove(key string) error
 	Size() int
 	GetSorted() []sortedIntersection
+	GetContainer() map[string]Rectangle
+	Merge(mapper IntersectionMapper)
 }
 
 type intersectionMap struct {
@@ -20,7 +22,7 @@ type intersectionMap struct {
 }
 
 type sortedIntersection struct {
-	Key string
+	Key   string
 	Value Rectangle
 }
 
@@ -63,14 +65,31 @@ func (c *intersectionMap) GetSorted() []sortedIntersection {
 
 	for key, value := range c.container {
 		sortedIntersections = append(sortedIntersections, sortedIntersection{
-			Key:  key,
+			Key:   key,
 			Value: value,
 		})
 	}
 
 	sort.Slice(sortedIntersections, func(i, j int) bool {
-		return sortedIntersections[i].Key < sortedIntersections[j].Key
+		k1, k2 := sortedIntersections[i].Key, sortedIntersections[j].Key
+		l1, l2 := len(k1), len(k2)
+
+		if l1 != l2 {
+			return l1 < l2
+		}
+
+		return k1 < k2
 	})
 
 	return sortedIntersections
+}
+
+func (c *intersectionMap) GetContainer() map[string]Rectangle {
+	return c.container
+}
+
+func (c *intersectionMap) Merge(otherImap IntersectionMapper) {
+	for key, value := range otherImap.GetContainer() {
+		c.Add(key, value)
+	}
 }
