@@ -80,6 +80,7 @@ func FindIntersectionMultiple(
 		}
 	}
 
+	// go deeper levels if current level have intersection
 	if currentMapper.Size() > 0 {
 		 nextMapper := FindIntersectionMultiple(inputRectangles, currentMapper)
 		 currentMapper.Merge(nextMapper)
