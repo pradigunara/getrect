@@ -5,10 +5,10 @@ import (
 )
 
 type Rectangle struct {
-	X      int
-	Y      int
-	Width  int
-	Height int
+	X      int `json:"x"`
+	Y      int `json:"y"`
+	Width  int `json:"w"`
+	Height int `json:"h"`
 }
 
 func NewRectangle(x, y, w, h int) (Rectangle, error) {
